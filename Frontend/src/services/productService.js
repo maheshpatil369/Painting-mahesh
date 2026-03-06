@@ -1,78 +1,60 @@
-// Product API Service
-import { API_URL as BACKEND_URL } from '../config';
-const API_PRODUCTS_ENDPOINT = `${BACKEND_URL}/products`;
+import axios from 'axios';
 
-/**
- * Fetch all products from the backend
- * @returns {Promise<Array>} Array of products
- */
-export const fetchAllProducts = async () => {
-  try {
-    const response = await fetch(API_PRODUCTS_ENDPOINT);
-    
-    if (!response.ok) {
-      throw new Error(`Failed to fetch products: ${response.status}`);
+// Centralized backend URL configuration
+export const BASE_URL = import.meta.env.VITE_BACKEND_URL || 'https://demo-shop-ni7w.onrender.com';
+export const API_URL = `${BASE_URL}/api`;
+
+const getHeaders = () => {
+  const token = localStorage.getItem('accessToken');
+  return {
+    headers: {
+      'Authorization': `Bearer ${token}`
+      // Note: Multer handles 'multipart/form-data' automatically when using FormData objects
     }
-    
-    const products = await response.json();
-    
-    // Normalize product IDs - convert _id to id for frontend compatibility
-    return products.map(product => ({
-      ...product,
-      id: product._id || product.id
-    }));
-  } catch (error) {
-    console.error('Error fetching products:', error);
-    throw error;
+  };
+};
+
+export const productService = {
+  getAll: async () => {
+    const response = await axios.get(`${API_URL}/products`);
+    return response.data;
+  },
+
+  getById: async (id) => {
+    const response = await axios.get(`${API_URL}/products/${id}`);
+    return response.data;
+  },
+
+  create: async (formData) => {
+    // formData must be an instance of FormData() for S3 image uploads
+    const response = await axios.post(`${API_URL}/products`, formData, getHeaders());
+    return response.data;
+  },
+
+  update: async (id, formData) => {
+    // formData must be an instance of FormData() for S3 image uploads
+    const response = await axios.put(`${API_URL}/products/${id}`, formData, getHeaders());
+    return response.data;
+  },
+
+  delete: async (id) => {
+    const response = await axios.delete(`${API_URL}/products/${id}`, getHeaders());
+    return response.data;
   }
 };
 
-/**
- * Fetch a single product by ID
- * @param {string} productId - Product ID (_id or id)
- * @returns {Promise<Object>} Product object
- */
-export const fetchProductById = async (productId) => {
-  try {
-    const response = await fetch(`${API_PRODUCTS_ENDPOINT}/${productId}`);
-    
-    if (!response.ok) {
-      if (response.status === 404) {
-        throw new Error('Product not found');
-      }
-      throw new Error(`Failed to fetch product: ${response.status}`);
-    }
-    
-    const product = await response.json();
-    
-    // Normalize product ID
-    return {
-      ...product,
-      id: product._id || product.id
-    };
-  } catch (error) {
-    console.error('Error fetching product:', error);
-    throw error;
-  }
-};
+// --- Named Exports for Backward Compatibility ---
+export const fetchAllProducts = productService.getAll;
+export const fetchProductById = productService.getById;
+export const createProduct = productService.create;
+export const updateProduct = productService.update;
+export const deleteProduct = productService.delete;
 
 /**
- * Fetch featured products (products with tags like 'Best Seller', 'New', etc.)
- * @returns {Promise<Array>} Array of featured products
+ * Satisfies the requirement for Featured Products in Home.jsx.
  */
 export const fetchFeaturedProducts = async () => {
-  try {
-    const allProducts = await fetchAllProducts();
-    
-    // Filter products with tags
-    const featured = allProducts.filter(
-      p => p.tag && (p.tag === 'Best Seller' || p.tag === 'New' || p.tag === 'Popular' || p.tag === 'Hot')
-    );
-    
-    return featured.slice(0, 3);
-  } catch (error) {
-    console.error('Error fetching featured products:', error);
-    return [];
-  }
+    const products = await productService.getAll();
+    // Logic: Featured usually means products with a specific tag or just the newest ones
+    return products.slice(0, 8); 
 };
-

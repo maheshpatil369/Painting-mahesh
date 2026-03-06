@@ -15,13 +15,22 @@ const upload = multer({
     s3: s3,
     bucket: process.env.AWS_S3_BUCKET_NAME,
     acl: "public-read",
-    metadata: (req, file, cb) => {
+    metadata: function (req, file, cb) {
       cb(null, { fieldName: file.fieldname });
     },
-    key: (req, file, cb) => {
-      cb(null, `products/${Date.now().toString()}-${file.originalname}`);
+    key: function (req, file, cb) {
+      const fileName = `${Date.now().toString()}-${file.originalname.replace(/\s+/g, '-')}`;
+      cb(null, `products/${fileName}`);
     },
   }),
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype.startsWith('image/')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only images are allowed!'), false);
+    }
+  },
+  limits: { fileSize: 10 * 1024 * 1024 } // 10MB limit per file
 });
 
 module.exports = upload;
