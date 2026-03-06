@@ -12,6 +12,7 @@ const ProductPage = ({ onAddToCart }) => {
   const [recommendedProducts, setRecommendedProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [selectedImage, setSelectedImage] = useState(null);
   
   // Fetch product and related products
   useEffect(() => {
@@ -19,11 +20,17 @@ const ProductPage = ({ onAddToCart }) => {
       setLoading(true);
       setError('');
       try {
-        // Fetch the current product
         const productData = await fetchProductById(id);
         setProduct(productData);
+
+        // Set first image as default selected
+        const images = productData.images?.length
+          ? productData.images
+          : productData.image
+          ? [productData.image]
+          : [];
+        setSelectedImage(images[0] || null);
         
-        // Fetch all products to get related ones
         const allProducts = await fetchAllProducts();
         const related = allProducts
           .filter(p => p.category === productData.category && (p._id !== productData._id && p.id !== productData.id))
@@ -77,44 +84,73 @@ const ProductPage = ({ onAddToCart }) => {
   const unitPrice = product.price; 
   const currentTotalPrice = unitPrice * quantity;
 
+  // Build images array from product.images (S3 array) or fallback to product.image
+  const productImages = product.images?.length
+    ? product.images
+    : product.image
+    ? [product.image]
+    : [];
+
+  const fallbackImage = "https://placehold.co/600x600/e5e7eb/4b5563?text=Xtreme+Kolorz";
+
   return (
     <div className="bg-white min-h-screen py-12">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         
         {/* Breadcrumbs */}
-         <div className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-6 flex items-center space-x-1">
-           <Link to="/" className="hover:text-black">Home</Link>
-           <ChevronRight size={12} />
-           <Link to="/shop" className="hover:text-black">Shop</Link>
-           <ChevronRight size={12} />
-           <span className="text-black">{product.name}</span>
-         </div>
+        <div className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-6 flex items-center space-x-1">
+          <Link to="/" className="hover:text-black">Home</Link>
+          <ChevronRight size={12} />
+          <Link to="/shop" className="hover:text-black">Shop</Link>
+          <ChevronRight size={12} />
+          <span className="text-black">{product.name}</span>
+        </div>
          
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
           
           {/* Image Gallery */}
           <div className="space-y-4">
-            <div className="bg-gray-100 border border-gray-200 rounded-lg overflow-hidden p-8 flex items-center justify-center shadow-lg">
+
+            {/* Main Image */}
+            <div className="bg-gray-100 border border-gray-200 rounded-lg overflow-hidden p-8 flex items-center justify-center shadow-lg aspect-square">
               <img 
-                src={product.image} 
+                src={selectedImage || fallbackImage}
                 alt={product.name} 
-                className="w-full h-auto object-cover mix-blend-multiply rounded-lg"
-                onError={(e) => { e.target.onerror = null; e.target.src = "https://placehold.co/600x600/e5e7eb/4b5563?text=Xtreme+Kolorz"; }}
+                className="w-full h-full object-contain mix-blend-multiply rounded-lg transition-opacity duration-200"
+                onError={(e) => { e.target.onerror = null; e.target.src = fallbackImage; }}
               />
             </div>
-            <div className="grid grid-cols-4 gap-4">
-              {[1, 2, 3, 4].map(i => (
-                <div key={i} className="bg-gray-100 aspect-square border border-gray-200 hover:border-sky-500 cursor-pointer p-2 rounded-lg transition-colors">
-                  {/* Using placeholder images for thumbnails */}
-                  <img 
-                    src={`https://placehold.co/100x100/e5e7eb/4b5563?text=Sample+${i}`} 
-                    alt="Thumbnail" 
-                    className="w-full h-full object-cover" 
-                    onError={(e) => { e.target.onerror = null; e.target.src = "https://placehold.co/100x100/e5e7eb/4b5563?text=Error"; }}
-                  />
-                </div>
-              ))}
-            </div>
+
+            {/* Thumbnails — only render if more than 1 image */}
+            {productImages.length > 1 && (
+              <div className="grid grid-cols-4 gap-4">
+                {productImages.map((img, i) => (
+                  <button
+                    key={i}
+                    onClick={() => setSelectedImage(img)}
+                    className={`aspect-square border-2 rounded-lg overflow-hidden transition-all p-1 bg-gray-100 ${
+                      selectedImage === img
+                        ? 'border-black shadow-md scale-105'
+                        : 'border-gray-200 hover:border-sky-400'
+                    }`}
+                  >
+                    <img 
+                      src={img}
+                      alt={`${product.name} view ${i + 1}`}
+                      className="w-full h-full object-contain"
+                      onError={(e) => { e.target.onerror = null; e.target.src = "https://placehold.co/100x100/e5e7eb/4b5563?text=No+Image"; }}
+                    />
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* Image count indicator */}
+            {productImages.length > 1 && (
+              <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 text-center">
+                {productImages.indexOf(selectedImage) + 1} / {productImages.length} images
+              </p>
+            )}
           </div>
 
           {/* Product Info & Purchase Controls */}
@@ -169,19 +205,18 @@ const ProductPage = ({ onAddToCart }) => {
             
             {/* Technical Specifications / Shade Details */}
             <div className="bg-gray-50 p-6 rounded-lg border border-gray-200 shadow-inner">
-                <div className="flex items-center mb-3">
-                    <Microscope className="h-6 w-6 text-red-600 mr-3" />
-                    <h4 className="font-black text-black uppercase text-sm">Pigment Technology (Shade Details)</h4>
-                </div>
-                <p className="text-sm text-gray-700 leading-relaxed">
-                    This **{product.category}** pigment is a very fine inorganic, mica-based tinter coated with metal oxides. It is semi-transparent, allowing you to use different colored base coats for unique, customized shade results. 
-                </p>
-                <ul className="mt-4 space-y-1 text-sm text-gray-600">
-                    <li className='flex items-center'><Palette className='h-4 w-4 mr-2 text-sky-500'/> **Color Depth:** Enhanced layering for intense, non-flat color.</li>
-                    <li className='flex items-center'><Droplets className='h-4 w-4 mr-2 text-sky-500'/> **Base Coat Compatibility:** Works best over medium-to-dark base coats (varies by pearl type).</li>
-                </ul>
+              <div className="flex items-center mb-3">
+                <Microscope className="h-6 w-6 text-red-600 mr-3" />
+                <h4 className="font-black text-black uppercase text-sm">Pigment Technology (Shade Details)</h4>
+              </div>
+              <p className="text-sm text-gray-700 leading-relaxed">
+                This <strong>{product.category}</strong> pigment is a very fine inorganic, mica-based tinter coated with metal oxides. It is semi-transparent, allowing you to use different colored base coats for unique, customized shade results. 
+              </p>
+              <ul className="mt-4 space-y-1 text-sm text-gray-600">
+                <li className='flex items-center'><Palette className='h-4 w-4 mr-2 text-sky-500'/> <strong>Color Depth:</strong>&nbsp;Enhanced layering for intense, non-flat color.</li>
+                <li className='flex items-center'><Droplets className='h-4 w-4 mr-2 text-sky-500'/> <strong>Base Coat Compatibility:</strong>&nbsp;Works best over medium-to-dark base coats (varies by pearl type).</li>
+              </ul>
             </div>
-
 
             {/* Shipping & Mixing Features Grid */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 border-t border-gray-200 pt-8 mt-8">
@@ -205,7 +240,7 @@ const ProductPage = ({ onAddToCart }) => {
 
         </div>
 
-        {/* --- Recommended Products Section (New) --- */}
+        {/* Recommended Products Section */}
         {recommendedProducts.length > 0 && (
           <div className="mt-20 border-t border-gray-200 pt-16">
             <h2 className="text-3xl font-black text-black italic uppercase mb-10 text-center">
@@ -218,7 +253,7 @@ const ProductPage = ({ onAddToCart }) => {
             </div>
             
             <div className="text-center mt-12">
-               <Link 
+              <Link 
                 to="/shop" 
                 state={{ category: product.category }}
                 className="inline-flex items-center text-black font-black hover:text-sky-500 uppercase tracking-wider text-base transition-colors border-b-2 border-black hover:border-sky-500"

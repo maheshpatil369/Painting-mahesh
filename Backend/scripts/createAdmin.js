@@ -13,7 +13,7 @@ async function createAdmin() {
 
     // Admin credentials
     const adminEmail = 'admin@painting-shop.com';
-    const adminPassword = 'Admin123!';
+    const adminPassword = 'Admin123';
     const adminName = 'Admin User';
 
     // Check if admin already exists
