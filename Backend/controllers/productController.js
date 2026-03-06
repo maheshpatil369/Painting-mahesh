@@ -1,3 +1,5 @@
+// productController.js
+
 const Product = require('../models/product');
 
 // POST create new product
