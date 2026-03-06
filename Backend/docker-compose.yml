@@ -1,0 +1,25 @@
+version: "3.8"
+services:
+  mongo:
+    image: mongo:6
+    restart: unless-stopped
+    volumes:
+      - mongo-data:/data/db
+    ports:
+      - "27017:27017"
+  api:
+    build: .
+    restart: unless-stopped
+    environment:
+      - PORT=4000
+      - MONGO_URI=mongodb://mongo:27017/paintshop
+      - JWT_ACCESS_SECRET=replace_access
+      - JWT_REFRESH_SECRET=replace_refresh
+      - COOKIE_SECURE=false
+      - FRONTEND_ORIGIN=http://localhost:3000
+    depends_on:
+      - mongo
+    ports:
+      - "4000:4000"
+volumes:
+  mongo-data:
